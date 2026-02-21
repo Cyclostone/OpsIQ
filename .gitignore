@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Storage (runtime-generated)
+storage/*.db
+
+# Pytest
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Streamlit (allow config.toml for theming)
+.streamlit/secrets.toml
+
+# Misc
+*.log
+*.tmp

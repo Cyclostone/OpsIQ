@@ -1,0 +1,28 @@
+# OpsIQ - Self-Improving Operational Intelligence Agent
+# Core
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# Data & Analytics
+duckdb==1.1.3
+pandas==2.2.3
+numpy==1.26.4
+
+# Frontend
+streamlit==1.41.1
+
+# Charts
+plotly==5.24.1
+matplotlib==3.9.3
+
+# HTTP (for sponsor adapters)
+httpx==0.28.1
+
+# Testing
+pytest==8.3.2
+
+# Utilities
+python-dateutil==2.9.0.post0

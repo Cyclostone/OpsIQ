@@ -1,0 +1,6 @@
+signal_id,timestamp,signal_type,severity,source,related_entity,payload_json
+SIG001,2026-02-20 08:00:00,anomaly_alert,high,datadog,refunds,"{""metric"": ""refund.count"", ""value"": 6, ""threshold"": 3, ""region"": ""EMEA"", ""message"": ""Refund count spike detected in EMEA region""}"
+SIG002,2026-02-20 08:05:00,metric_drift,medium,lightdash,revenue,"{""metric"": ""monthly_revenue"", ""expected"": 2800, ""actual"": 2350, ""drift_pct"": -16.1, ""message"": ""Monthly revenue below forecast by 16%""}"
+SIG003,2026-02-20 08:10:00,billing_exception,high,internal,invoices,"{""type"": ""underbilling_detected"", ""invoice_ids"": [""INV008"", ""INV010""], ""total_gap"": 400, ""message"": ""Billing gap detected: $400 underbilled across 2 invoices""}"
+SIG004,2026-02-21 07:00:00,anomaly_alert,medium,datadog,payments,"{""metric"": ""payment.failure_rate"", ""value"": 0.08, ""threshold"": 0.05, ""message"": ""Payment failure rate elevated at 8%""}"
+SIG005,2026-02-21 07:30:00,scheduled_scan,low,internal,all,"{""message"": ""Scheduled daily triage scan triggered""}"

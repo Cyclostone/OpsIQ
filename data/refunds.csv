@@ -1,0 +1,12 @@
+refund_id,customer_id,refund_date,amount,reason,processor,linked_payment_id
+REF001,C002,2026-01-27 10:00:00,50.0,service_issue,stripe,PAY002
+REF002,C001,2026-02-01 10:00:00,100.0,billing_error,stripe,PAY001
+REF003,C003,2026-02-20 14:00:00,150.0,overcharge,stripe,PAY007
+REF004,C003,2026-02-20 14:45:00,150.0,overcharge,stripe,PAY007
+REF005,C004,2026-02-20 09:00:00,200.0,service_issue,stripe,PAY004
+REF006,C006,2026-02-20 10:00:00,199.0,billing_error,stripe,PAY009
+REF007,C008,2026-02-20 11:00:00,49.0,service_issue,stripe,PAY011
+REF008,C009,2026-02-20 12:00:00,180.0,overcharge,stripe,PAY012
+REF009,C009,2026-02-20 16:00:00,500.0,manual_credit,manual,PAY012
+REF010,C004,2026-01-17 10:00:00,50.0,service_issue,stripe,PAY004
+REF011,C006,2026-01-12 10:00:00,30.0,billing_error,stripe,PAY015

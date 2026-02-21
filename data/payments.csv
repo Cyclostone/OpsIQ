@@ -1,0 +1,17 @@
+payment_id,invoice_id,customer_id,payment_date,amount,payment_processor,status
+PAY001,INV001,C001,2026-01-22 12:00:00,499.0,stripe,completed
+PAY002,INV002,C002,2026-01-22 12:00:00,199.0,stripe,completed
+PAY003,INV003,C003,2026-01-22 12:00:00,49.0,stripe,completed
+PAY004,INV004,C004,2026-01-22 12:00:00,499.0,stripe,completed
+PAY005,INV005,C001,2026-02-19 12:00:00,499.0,stripe,completed
+PAY006,INV006,C002,2026-02-19 12:00:00,199.0,stripe,completed
+PAY007,INV007,C003,2026-02-19 12:00:00,49.0,stripe,completed
+PAY008,INV008,C005,2026-02-19 12:00:00,199.0,stripe,completed
+PAY009,INV009,C006,2026-02-19 12:00:00,199.0,stripe,completed
+PAY010,INV010,C007,2026-02-19 12:00:00,199.0,stripe,completed
+PAY011,INV011,C008,2026-02-19 12:00:00,49.0,stripe,completed
+PAY012,INV012,C009,2026-02-19 12:00:00,199.0,stripe,completed
+PAY013,INV013,C005,2026-01-20 12:00:00,299.0,stripe,completed
+PAY014,INV014,C007,2026-01-20 12:00:00,499.0,stripe,completed
+PAY015,INV015,C006,2026-01-20 12:00:00,199.0,stripe,completed
+PAY016,INV016,C004,2026-02-19 12:00:00,499.0,stripe,completed

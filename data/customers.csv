@@ -1,0 +1,11 @@
+customer_id,customer_name,region,plan_tier,status
+C001,Acme Corp,NA,enterprise,active
+C002,Globex Inc,NA,pro,active
+C003,Initech,NA,starter,active
+C004,Umbrella Ltd,EMEA,enterprise,active
+C005,Stark Industries,NA,enterprise,active
+C006,Wayne Enterprises,EMEA,pro,active
+C007,Cyberdyne Systems,APAC,enterprise,active
+C008,Soylent Corp,EMEA,starter,active
+C009,Tyrell Corp,EMEA,pro,active
+C010,Wonka Industries,APAC,starter,churned

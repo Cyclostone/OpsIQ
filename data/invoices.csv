@@ -1,0 +1,17 @@
+invoice_id,customer_id,invoice_date,billed_amount,expected_amount,plan_tier_billed,status
+INV001,C001,2026-01-22 10:00:00,499.0,499.0,enterprise,paid
+INV002,C002,2026-01-22 10:00:00,199.0,199.0,pro,paid
+INV003,C003,2026-01-22 10:00:00,49.0,49.0,starter,paid
+INV004,C004,2026-01-22 10:00:00,499.0,499.0,enterprise,paid
+INV005,C001,2026-02-19 10:00:00,499.0,499.0,enterprise,paid
+INV006,C002,2026-02-19 10:00:00,199.0,199.0,pro,paid
+INV007,C003,2026-02-19 10:00:00,49.0,49.0,starter,paid
+INV008,C005,2026-02-19 10:00:00,199.0,299.0,enterprise,paid
+INV009,C006,2026-02-19 10:00:00,199.0,199.0,pro,paid
+INV010,C007,2026-02-19 10:00:00,199.0,499.0,pro,paid
+INV011,C008,2026-02-19 10:00:00,49.0,49.0,starter,paid
+INV012,C009,2026-02-19 10:00:00,199.0,199.0,pro,paid
+INV013,C005,2026-01-20 10:00:00,299.0,299.0,enterprise,paid
+INV014,C007,2026-01-20 10:00:00,499.0,499.0,enterprise,paid
+INV015,C006,2026-01-20 10:00:00,199.0,199.0,pro,paid
+INV016,C004,2026-02-19 10:00:00,499.0,499.0,enterprise,paid
