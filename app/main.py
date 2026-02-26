@@ -21,7 +21,6 @@ from app.api.routes_sentiment import router as sentiment_router
 async def lifespan(app: FastAPI):
     """Initialize DuckDB on startup."""
     print("[main] OpsIQ starting up...")
-    print(f"[main] Mode: {settings.opsiq_mode}")
     get_db()  # Eagerly load data
     print("[main] Ready.")
     yield

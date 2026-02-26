@@ -1,12 +1,7 @@
 """Datadog Adapter — signal source / alert context ingestion.
 
-Usage in OpsIQ:
-  - Ingest monitoring signals (anomaly alerts, metric thresholds)
-  - Provide event metadata that triggers autonomous investigation
-  - In mock mode: reads from signal_events CSV (source='datadog')
-  - In real mode: calls Datadog Events/Metrics API
-
-Mock mode works without any API keys for demo reliability.
+Ingests monitoring signals (anomaly alerts, metric thresholds) from the
+signal_events dataset to trigger autonomous investigation.
 """
 
 from __future__ import annotations
@@ -15,31 +10,14 @@ import json
 from datetime import datetime
 from typing import Any
 
-from app.config import settings
-from app.models.schemas import SignalEvent, Severity, AdapterMode
+from app.models.schemas import SignalEvent, Severity
 
 
 # ---------------------------------------------------------------------------
-# State tracking for demo / sponsor page
+# State tracking
 # ---------------------------------------------------------------------------
 _last_used: datetime | None = None
 _call_log: list[dict[str, Any]] = []
-
-
-def get_mode() -> AdapterMode:
-    return AdapterMode.real if settings.datadog_available else AdapterMode.mock
-
-
-def get_status() -> dict[str, Any]:
-    return {
-        "name": "Datadog",
-        "mode": get_mode().value,
-        "available": settings.datadog_available,
-        "description": "Monitoring signal source — ingests anomaly alerts and metric threshold events to trigger autonomous investigation.",
-        "last_used": _last_used.isoformat() if _last_used else None,
-        "call_count": len(_call_log),
-        "sample_payload": _get_sample_payload(),
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -47,26 +25,14 @@ def get_status() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def fetch_signals() -> list[SignalEvent]:
-    """Fetch latest Datadog signals.
-
-    In mock mode: queries DuckDB signal_events where source='datadog'.
-    In real mode: would call Datadog Events API.
-    """
+    """Fetch signals from the signal_events dataset where source='datadog'."""
     global _last_used
     _last_used = datetime.utcnow()
-
-    if settings.datadog_available:
-        return _fetch_real_signals()
-    else:
-        return _fetch_mock_signals()
+    return _fetch_signals()
 
 
 def fetch_alert_context(signal: SignalEvent) -> dict[str, Any]:
-    """Enrich a signal with additional Datadog context.
-
-    In mock mode: returns simulated enrichment data.
-    In real mode: would call Datadog API for related monitors/events.
-    """
+    """Enrich a signal with additional context."""
     global _last_used
     _last_used = datetime.utcnow()
 
@@ -74,32 +40,24 @@ def fetch_alert_context(signal: SignalEvent) -> dict[str, Any]:
         "source": "datadog",
         "signal_id": signal.signal_id,
         "enriched_at": datetime.utcnow().isoformat(),
-    }
-
-    if settings.datadog_available:
-        # Real mode: would call GET /api/v1/events or /api/v2/events
-        context["mode"] = "real"
-        context["note"] = "Real Datadog API enrichment would be here"
-    else:
-        # Mock enrichment
-        context["mode"] = "mock"
-        context["related_monitors"] = [
+        "related_monitors": [
             {"monitor_id": "MON-001", "name": "Refund Rate Monitor", "status": "Alert"},
             {"monitor_id": "MON-002", "name": "Revenue Anomaly Detector", "status": "Warn"},
-        ]
-        context["tags"] = ["env:production", "service:billing", "team:finance"]
-        context["priority"] = "P2"
+        ],
+        "tags": ["env:production", "service:billing", "team:finance"],
+        "priority": "P2",
+    }
 
     _log_call("fetch_alert_context", context)
     return context
 
 
 # ---------------------------------------------------------------------------
-# Mock implementation
+# Signal fetching
 # ---------------------------------------------------------------------------
 
-def _fetch_mock_signals() -> list[SignalEvent]:
-    """Read Datadog signals from DuckDB signal_events table."""
+def _fetch_signals() -> list[SignalEvent]:
+    """Read signals from DuckDB signal_events table where source='datadog'."""
     from app.services.data_service import query_rows
 
     rows = query_rows("""
@@ -129,57 +87,13 @@ def _fetch_mock_signals() -> list[SignalEvent]:
             payload=payload,
         ))
 
-    _log_call("fetch_signals (mock)", {"count": len(signals)})
+    _log_call("fetch_signals", {"count": len(signals)})
     return signals
-
-
-# ---------------------------------------------------------------------------
-# Real implementation placeholder
-# ---------------------------------------------------------------------------
-
-def _fetch_real_signals() -> list[SignalEvent]:
-    """Call Datadog Events API. Placeholder for real integration."""
-    import httpx
-
-    # Example: GET https://api.datadoghq.com/api/v1/events
-    # Headers: DD-API-KEY, DD-APPLICATION-KEY
-    # This is a placeholder — would need proper implementation
-    try:
-        client = httpx.Client(
-            base_url=f"https://api.{settings.datadog_site}",
-            headers={
-                "DD-API-KEY": settings.datadog_api_key,
-                "DD-APPLICATION-KEY": settings.datadog_app_key,
-            },
-            timeout=10.0,
-        )
-        # For hackathon: fall back to mock if real call fails
-        resp = client.get("/api/v1/events", params={"start": int(datetime.utcnow().timestamp()) - 3600})
-        resp.raise_for_status()
-        # Parse response into SignalEvents...
-        _log_call("fetch_signals (real)", {"status": resp.status_code})
-        return []  # Would parse real events here
-    except Exception as e:
-        print(f"  [datadog_adapter] Real API call failed, falling back to mock: {e}")
-        return _fetch_mock_signals()
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _get_sample_payload() -> dict[str, Any]:
-    return {
-        "event_type": "anomaly_alert",
-        "source": "datadog",
-        "metric": "refund.count",
-        "value": 6,
-        "threshold": 3,
-        "region": "EMEA",
-        "tags": ["env:production", "service:billing"],
-        "message": "Refund count spike detected in EMEA region",
-    }
-
 
 def _log_call(action: str, details: dict[str, Any]) -> None:
     _call_log.append({

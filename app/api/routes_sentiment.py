@@ -1,4 +1,4 @@
-"""Sentiment analysis endpoints (Modulate / MCP integration)."""
+"""Sentiment analysis endpoints."""
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -18,12 +18,6 @@ def analyze_sentiment(req: SentimentRequest):
     """Analyze sentiment of arbitrary text via Modulate adapter."""
     result = modulate_adapter.analyze_text(req.text, req.context)
     return result
-
-
-@router.get("/sentiment/status")
-def sentiment_status():
-    """Return Modulate adapter status."""
-    return modulate_adapter.get_status()
 
 
 @router.get("/sentiment/log")

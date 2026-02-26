@@ -1,32 +1,10 @@
 """Lightdash Adapter — BI analytics / semantic metric layer.
 
-Lightdash is an open-source BI tool that sits on top of dbt.
-In OpsIQ, Lightdash serves as the **metric context layer**:
-  - Provides semantic metric definitions (what metrics mean, how they're calculated)
-  - Supplies chart configurations for metric visualizations
-  - Fetches metric drift signals (revenue drop, refund spike, etc.)
+Provides the semantic metric context for OpsIQ:
+  - Semantic metric definitions (what metrics mean, how they're calculated)
+  - Chart configurations for metric visualizations
+  - Metric drift signals (revenue drop, refund spike, etc.)
   - Enriches analyst answers with metric context
-
-Real mode (LIGHTDASH_API_KEY set):
-  - Calls Lightdash REST API v1 with Authorization: ApiKey <token>
-  - Queries: GET /api/v1/projects/{uuid}/explores (metric catalog)
-  - Results: POST /api/v1/projects/{uuid}/sqlRunner (run queries)
-  - Charts: GET /api/v1/projects/{uuid}/charts (saved charts)
-
-Mock mode (no key):
-  - Returns hardcoded semantic metric layer (8 billing metrics)
-  - Reads signal_events from DuckDB where source='lightdash'
-  - Same interface, same data format
-
-Setup:
-  1. Go to https://app.lightdash.cloud → Sign up
-  2. Settings → Personal Access Tokens → Create token
-  3. Add to .env: LIGHTDASH_API_KEY=your_token
-  4. Set LIGHTDASH_URL=https://app.lightdash.cloud
-  5. Set LIGHTDASH_PROJECT_UUID=your_project_uuid
-
-Note: Full Lightdash setup requires a dbt project + data warehouse.
-For the hackathon, the mock metric layer is fully functional.
 """
 
 from __future__ import annotations
@@ -35,8 +13,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from app.config import settings
-from app.models.schemas import SignalEvent, Severity, AdapterMode
+from app.models.schemas import SignalEvent, Severity
 
 
 # ---------------------------------------------------------------------------
@@ -44,28 +21,6 @@ from app.models.schemas import SignalEvent, Severity, AdapterMode
 # ---------------------------------------------------------------------------
 _last_used: datetime | None = None
 _call_log: list[dict[str, Any]] = []
-_api_errors: list[dict[str, Any]] = []
-
-
-def get_mode() -> AdapterMode:
-    return AdapterMode.real if settings.lightdash_available else AdapterMode.mock
-
-
-def get_status() -> dict[str, Any]:
-    return {
-        "name": "Lightdash",
-        "mode": get_mode().value,
-        "available": settings.lightdash_available,
-        "api_url": settings.lightdash_url or "(not set)",
-        "api_key_set": bool(settings.lightdash_api_key),
-        "project_uuid": settings.lightdash_project_uuid or "(not set)",
-        "description": "BI analytics & semantic metric layer — provides metric definitions, chart configs, and metric drift signals. Powers the Analyst module.",
-        "last_used": _last_used.isoformat() if _last_used else None,
-        "call_count": len(_call_log),
-        "api_errors": len(_api_errors),
-        "metrics_available": len(METRIC_DEFINITIONS),
-        "sample_payload": _get_sample_payload(),
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +129,6 @@ def get_chart_config(metric_name: str, chart_type: str = "bar") -> dict[str, Any
     metric = get_metric_by_name(metric_name)
     config = {
         "source": "lightdash",
-        "mode": get_mode().value,
         "metric": metric_name,
         "chart_type": chart_type,
         "title": metric["label"] if metric else metric_name,
@@ -195,18 +149,14 @@ def get_chart_config(metric_name: str, chart_type: str = "bar") -> dict[str, Any
 # ---------------------------------------------------------------------------
 
 def fetch_signals() -> list[SignalEvent]:
-    """Fetch Lightdash metric drift signals."""
+    """Fetch metric drift signals from the signal_events dataset."""
     global _last_used
     _last_used = datetime.utcnow()
-
-    if settings.lightdash_available:
-        return _fetch_real_signals()
-    else:
-        return _fetch_mock_signals()
+    return _fetch_signals()
 
 
-def _fetch_mock_signals() -> list[SignalEvent]:
-    """Read Lightdash signals from DuckDB signal_events table."""
+def _fetch_signals() -> list[SignalEvent]:
+    """Read signals from DuckDB signal_events table where source='lightdash'."""
     from app.services.data_service import query_rows
 
     rows = query_rows("""
@@ -236,71 +186,12 @@ def _fetch_mock_signals() -> list[SignalEvent]:
             payload=payload,
         ))
 
-    _log_call("fetch_signals (mock)", {"count": len(signals)})
+    _log_call("fetch_signals", {"count": len(signals)})
     return signals
 
 
-def _fetch_real_signals() -> list[SignalEvent]:
-    """Call Lightdash REST API for metric data.
-
-    Lightdash API format:
-      Base: {LIGHTDASH_URL}/api/v1
-      Auth: Authorization: ApiKey {LIGHTDASH_API_KEY}
-      Endpoints:
-        - GET /projects/{uuid}/explores → metric catalog
-        - GET /projects/{uuid}/charts → saved charts
-        - POST /projects/{uuid}/sqlRunner → run SQL queries
-    """
-    import httpx
-
-    try:
-        base = settings.lightdash_url.rstrip("/")
-        project = settings.lightdash_project_uuid
-        headers = {
-            "Authorization": f"ApiKey {settings.lightdash_api_key}",
-            "Content-Type": "application/json",
-        }
-
-        # Try to fetch chart results for metric drift detection
-        resp = httpx.get(
-            f"{base}/api/v1/projects/{project}/charts",
-            headers=headers,
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        charts = data.get("results", [])
-
-        _log_call("fetch_signals (real)", {
-            "status": resp.status_code,
-            "charts_found": len(charts),
-        })
-        print(f"  [lightdash_adapter] Real API: found {len(charts)} charts")
-
-        # For now, still use mock signals since we don't have real metric alerts
-        # but log that we successfully connected to the API
-        return _fetch_mock_signals()
-
-    except httpx.HTTPStatusError as e:
-        error_detail = f"HTTP {e.response.status_code}: {e.response.text[:200]}"
-        print(f"  [lightdash_adapter] API error: {error_detail}")
-        _api_errors.append({
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": error_detail,
-        })
-        return _fetch_mock_signals()
-
-    except Exception as e:
-        print(f"  [lightdash_adapter] Real API call failed, falling back to mock: {e}")
-        _api_errors.append({
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": str(e),
-        })
-        return _fetch_mock_signals()
-
-
 def query_metric(metric_name: str) -> dict[str, Any]:
-    """Query a specific metric value, using Lightdash API if available."""
+    """Query a specific metric value against local DuckDB."""
     global _last_used
     _last_used = datetime.utcnow()
 
@@ -308,62 +199,23 @@ def query_metric(metric_name: str) -> dict[str, Any]:
     if not metric:
         return {"error": f"Unknown metric: {metric_name}"}
 
-    if settings.lightdash_available:
-        return _query_metric_real(metric)
-    return _query_metric_mock(metric)
+    return _query_metric(metric)
 
 
-def _query_metric_real(metric: dict[str, Any]) -> dict[str, Any]:
-    """Run a metric query via Lightdash SQL Runner."""
-    import httpx
-
-    try:
-        base = settings.lightdash_url.rstrip("/")
-        project = settings.lightdash_project_uuid
-        headers = {
-            "Authorization": f"ApiKey {settings.lightdash_api_key}",
-            "Content-Type": "application/json",
-        }
-
-        resp = httpx.post(
-            f"{base}/api/v1/projects/{project}/sqlRunner",
-            headers=headers,
-            json={"sql": metric.get("sql", "SELECT 1")},
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-        _log_call("query_metric (real)", {
-            "metric": metric["name"],
-            "status": resp.status_code,
-        })
-        return {
-            "metric": metric["name"],
-            "label": metric["label"],
-            "source": "lightdash_api",
-            "result": data.get("results", []),
-        }
-
-    except Exception as e:
-        print(f"  [lightdash_adapter] SQL runner failed: {e}")
-        return _query_metric_mock(metric)
-
-
-def _query_metric_mock(metric: dict[str, Any]) -> dict[str, Any]:
+def _query_metric(metric: dict[str, Any]) -> dict[str, Any]:
     """Run metric query against local DuckDB."""
     from app.services.data_service import query_rows
 
     try:
         rows = query_rows(metric.get("sql", "SELECT 1"))
-        _log_call("query_metric (mock/duckdb)", {
+        _log_call("query_metric", {
             "metric": metric["name"],
             "rows": len(rows),
         })
         return {
             "metric": metric["name"],
             "label": metric["label"],
-            "source": "duckdb_local",
+            "source": "duckdb",
             "result": rows,
         }
     except Exception as e:
@@ -378,26 +230,6 @@ def _query_metric_mock(metric: dict[str, Any]) -> dict[str, Any]:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _get_sample_payload() -> dict[str, Any]:
-    return {
-        "event_type": "metric_drift",
-        "source": "lightdash",
-        "metric": "monthly_revenue",
-        "expected": 2800,
-        "actual": 2350,
-        "drift_pct": -16.1,
-        "message": "Monthly revenue below forecast by 16%",
-        "lightdash_api_format": {
-            "auth": "Authorization: ApiKey <LIGHTDASH_API_KEY>",
-            "endpoints": [
-                "GET /api/v1/projects/{uuid}/explores",
-                "GET /api/v1/projects/{uuid}/charts",
-                "POST /api/v1/projects/{uuid}/sqlRunner",
-            ],
-        },
-    }
-
-
 def _log_call(action: str, details: dict[str, Any]) -> None:
     _call_log.append({
         "action": action,
@@ -410,13 +242,7 @@ def get_call_log() -> list[dict[str, Any]]:
     return list(_call_log)
 
 
-def get_api_errors() -> list[dict[str, Any]]:
-    """Return API error log for debugging."""
-    return list(_api_errors)
-
-
 def reset() -> None:
-    global _last_used, _call_log, _api_errors
+    global _last_used, _call_log
     _last_used = None
     _call_log = []
-    _api_errors = []

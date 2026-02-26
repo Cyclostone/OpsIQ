@@ -1,8 +1,7 @@
-"""Demo management and sponsor status endpoints."""
+"""State management endpoints."""
 
 from fastapi import APIRouter
 
-from app.config import settings
 from app.services.data_service import reset_db, get_db
 from app.storage.db import reset_sqlite
 from app.storage.feedback_store import clear_feedback
@@ -40,30 +39,3 @@ def reset_demo():
     return ResetResponse(status="ok", message="Demo state fully reset")
 
 
-@router.get("/sponsors/status")
-def sponsor_status():
-    """Return status of all 4 sponsor tool integrations."""
-    return {
-        "sponsors": [
-            datadog_adapter.get_status(),
-            lightdash_adapter.get_status(),
-            airia_adapter.get_status(),
-            modulate_adapter.get_status(),
-        ],
-        "llm": llm_client.get_status(),
-        "mode": settings.opsiq_mode,
-    }
-
-
-@router.get("/sponsors/activity")
-def sponsor_activity():
-    """Return call logs from all sponsor adapters."""
-    return {
-        "datadog": datadog_adapter.get_call_log(),
-        "lightdash": lightdash_adapter.get_call_log(),
-        "airia": {
-            "calls": airia_adapter.get_call_log(),
-            "actions": airia_adapter.get_actions(),
-        },
-        "modulate": modulate_adapter.get_analysis_log(),
-    }

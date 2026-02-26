@@ -1,11 +1,11 @@
-"""Tests for all sponsor adapters — Datadog, Lightdash, Airia, Modulate, LLM Client."""
+"""Tests for all adapters — Datadog, Lightdash, Airia, Modulate (Sentiment), LLM Client."""
 
 import pytest
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 from app.models.schemas import (
-    SignalEvent, Severity, Confidence, AdapterMode, TriageCase, CaseStatus,
+    SignalEvent, Severity, Confidence, TriageCase, CaseStatus,
 )
 
 
@@ -18,20 +18,6 @@ class TestDatadogAdapter:
         from app.adapters import datadog_adapter
         datadog_adapter.reset()
         self.adapter = datadog_adapter
-
-    def test_get_mode_returns_enum(self):
-        mode = self.adapter.get_mode()
-        assert isinstance(mode, AdapterMode)
-
-    def test_get_status_structure(self):
-        status = self.adapter.get_status()
-        assert "name" in status
-        assert status["name"] == "Datadog"
-        assert "mode" in status
-        assert "available" in status
-        assert "description" in status
-        assert "call_count" in status
-        assert "sample_payload" in status
 
     def test_fetch_signals_returns_list(self):
         signals = self.adapter.fetch_signals()
@@ -62,9 +48,9 @@ class TestDatadogAdapter:
 
     def test_reset_clears_state(self):
         self.adapter.fetch_signals()
-        assert self.adapter.get_status()["call_count"] >= 1
+        assert len(self.adapter.get_call_log()) >= 1
         self.adapter.reset()
-        assert self.adapter.get_status()["call_count"] == 0
+        assert len(self.adapter.get_call_log()) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -76,16 +62,6 @@ class TestLightdashAdapter:
         from app.adapters import lightdash_adapter
         lightdash_adapter.reset()
         self.adapter = lightdash_adapter
-
-    def test_get_mode_returns_enum(self):
-        mode = self.adapter.get_mode()
-        assert isinstance(mode, AdapterMode)
-
-    def test_get_status_structure(self):
-        status = self.adapter.get_status()
-        assert status["name"] == "Lightdash"
-        assert "metrics_available" in status
-        assert status["metrics_available"] == 8
 
     def test_metric_definitions_count(self):
         defs = self.adapter.get_metric_definitions()
@@ -125,7 +101,7 @@ class TestLightdashAdapter:
     def test_reset_clears_state(self):
         self.adapter.get_metric_definitions()
         self.adapter.reset()
-        assert self.adapter.get_status()["call_count"] == 0
+        assert len(self.adapter.get_call_log()) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -137,16 +113,6 @@ class TestAiriaAdapter:
         from app.adapters import airia_adapter
         airia_adapter.reset()
         self.adapter = airia_adapter
-
-    def test_get_mode_returns_enum(self):
-        mode = self.adapter.get_mode()
-        assert isinstance(mode, AdapterMode)
-
-    def test_get_status_structure(self):
-        status = self.adapter.get_status()
-        assert status["name"] == "Airia"
-        assert "api_url" in status
-        assert "actions_created" in status
 
     def test_create_case_action(self):
         case = TriageCase(
@@ -213,11 +179,11 @@ class TestAiriaAdapter:
         self.adapter.create_case_action(case)
         self.adapter.reset()
         assert len(self.adapter.get_actions()) == 0
-        assert self.adapter.get_status()["call_count"] == 0
+        assert len(self.adapter.get_call_log()) == 0
 
 
 # ---------------------------------------------------------------------------
-# Modulate Adapter
+# Modulate Adapter (Sentiment Engine)
 # ---------------------------------------------------------------------------
 
 class TestModulateAdapter:
@@ -225,16 +191,6 @@ class TestModulateAdapter:
         from app.adapters import modulate_adapter
         modulate_adapter.reset()
         self.adapter = modulate_adapter
-
-    def test_get_mode_returns_enum(self):
-        mode = self.adapter.get_mode()
-        assert isinstance(mode, AdapterMode)
-
-    def test_get_status_structure(self):
-        status = self.adapter.get_status()
-        assert status["name"] == "modulate"
-        assert "call_count" in status
-        assert "available" in status
 
     def test_analyze_text_negative(self):
         result = self.adapter.analyze_text("Suspicious duplicate refund detected for fraud")
@@ -285,7 +241,6 @@ class TestModulateAdapter:
     def test_reset_clears_state(self):
         self.adapter.analyze_text("Test")
         self.adapter.reset()
-        assert self.adapter.get_status()["call_count"] == 0
         assert len(self.adapter.get_analysis_log()) == 0
 
 

@@ -3,93 +3,17 @@
 import pytest
 
 
-class TestConfigAvailability:
-    """Test that sponsor availability checks work correctly."""
+class TestConfigSettings:
+    """Test that settings are loaded correctly."""
 
-    def test_datadog_needs_both_keys(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "real")
-        monkeypatch.setenv("DATADOG_API_KEY", "test_api_key")
-        monkeypatch.setenv("DATADOG_APP_KEY", "test_app_key")
+    def test_default_server_settings(self, monkeypatch):
         monkeypatch.setenv("GROQ_API_KEY", "")
         monkeypatch.setenv("OPENAI_API_KEY", "")
 
         from app.config import Settings
         s = Settings()
-        assert s.datadog_available is True
-
-    def test_datadog_unavailable_without_app_key(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "real")
-        monkeypatch.setenv("DATADOG_API_KEY", "test_api_key")
-        monkeypatch.setenv("DATADOG_APP_KEY", "")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.datadog_available is False
-
-    def test_datadog_unavailable_without_api_key(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "real")
-        monkeypatch.setenv("DATADOG_API_KEY", "")
-        monkeypatch.setenv("DATADOG_APP_KEY", "test_app_key")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.datadog_available is False
-
-    def test_datadog_unavailable_in_mock_mode(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "mock")
-        monkeypatch.setenv("DATADOG_API_KEY", "test_api_key")
-        monkeypatch.setenv("DATADOG_APP_KEY", "test_app_key")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.datadog_available is False
-
-    def test_lightdash_available(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "real")
-        monkeypatch.setenv("LIGHTDASH_API_KEY", "test_key")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.lightdash_available is True
-
-    def test_lightdash_unavailable_no_key(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "real")
-        monkeypatch.setenv("LIGHTDASH_API_KEY", "")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.lightdash_available is False
-
-    def test_airia_available(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "real")
-        monkeypatch.setenv("AIRIA_API_KEY", "test_key")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.airia_available is True
-
-    def test_airia_unavailable_no_key(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "real")
-        monkeypatch.setenv("AIRIA_API_KEY", "")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.airia_available is False
-
-    def test_modulate_available_regardless_of_mode(self, monkeypatch):
-        monkeypatch.setenv("OPSIQ_MODE", "mock")
-        monkeypatch.setenv("MODULATE_API_KEY", "test_key")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.modulate_available is True
-
-    def test_modulate_unavailable_no_key(self, monkeypatch):
-        monkeypatch.setenv("MODULATE_API_KEY", "")
-
-        from app.config import Settings
-        s = Settings()
-        assert s.modulate_available is False
+        assert s.backend_host == "0.0.0.0"
+        assert s.backend_port == 8000
 
 
 class TestLLMConfig:

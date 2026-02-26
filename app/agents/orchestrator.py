@@ -8,11 +8,11 @@ This is the brain of OpsIQ. It uses an LLM (Groq/OpenAI) to:
   5. Produce a full reasoning trace for observability
 
 Full autonomous flow:
-  1. Monitor: ingest signals from Datadog / Lightdash / internal
+  1. Monitor: ingest signals from all sources
   2. Reason: LLM analyzes signals and decides investigation strategy
   3. Triage: run anomaly detection → scoring → case generation
   4. Synthesize: LLM reviews cases and generates executive summary
-  5. Action: create case actions + alert via Airia
+  5. Action: create remediation actions (cases, alerts, approvals)
   6. Trace: log the full run with reasoning for observability
 
 This is the single entry point for `/monitor/run` and the demo flow.
@@ -31,7 +31,7 @@ from app.models.schemas import (
 )
 from app.agents.monitor_agent import fetch_all_signals, pick_trigger_signal, enrich_signal
 from app.agents.triage_agent import run_triage
-from app.adapters import airia_adapter, datadog_adapter, lightdash_adapter, modulate_adapter
+from app.adapters import airia_adapter, lightdash_adapter, modulate_adapter
 from app.adapters.llm_client import chat, is_available as llm_available
 from app.storage.trace_store import save_trace
 from app.storage.case_store import clear_cases
@@ -158,14 +158,13 @@ def run_autonomous(signal: SignalEvent | None = None) -> AutonomousRunResult:
                 picks the highest-priority signal automatically.
 
     Returns:
-        AutonomousRunResult with cases, actions, trace, reasoning, and sponsor activity.
+        AutonomousRunResult with cases, actions, trace, and reasoning.
     """
     run_id = f"RUN-{uuid.uuid4().hex[:8]}"
     start_time = time.time()
     steps: list[str] = []
     tools_called: list[str] = []
     actions: list[dict[str, Any]] = []
-    sponsor_activity: dict[str, Any] = {}
     reasoning_trace: dict[str, str] = {}
 
     print(f"\n{'='*60}")
@@ -188,13 +187,7 @@ def run_autonomous(signal: SignalEvent | None = None) -> AutonomousRunResult:
 
     if signal is None:
         print("[orchestrator] No signals found. Aborting.")
-        return AutonomousRunResult(run_id=run_id, cases=[], actions=[], sponsor_activity={})
-
-    sponsor_activity["datadog"] = {
-        "action": "signal_ingestion",
-        "signal_id": signal.signal_id if signal.source == "datadog" else "N/A",
-        "signals_fetched": True,
-    }
+        return AutonomousRunResult(run_id=run_id, cases=[], actions=[])
 
     # --- Step 2: LLM Reasoning — analyze signals & decide strategy ---
     steps.append("llm_signal_analysis")
@@ -211,34 +204,20 @@ def run_autonomous(signal: SignalEvent | None = None) -> AutonomousRunResult:
     enrichment = enrich_signal(signal)
     print(f"  Enrichment source: {enrichment.get('adapter_context', {}).get('source', 'unknown')}")
 
-    # --- Step 4: Lightdash metric context ---
+    # --- Step 4: Fetch metric context ---
     steps.append("fetch_metric_context")
     tools_called.append("lightdash_adapter")
-    print("\n[orchestrator] Step 4: Fetching Lightdash metric context...")
+    print("\n[orchestrator] Step 4: Fetching metric context...")
     metric_defs = lightdash_adapter.get_metric_definitions()
-    sponsor_activity["lightdash"] = {
-        "action": "metric_context",
-        "metrics_loaded": len(metric_defs),
-        "signal_id": signal.signal_id if signal.source == "lightdash" else "N/A",
-    }
     print(f"  Loaded {len(metric_defs)} metric definitions")
 
-    # --- Step 5: Triage — detect, score, create cases (includes Modulate sentiment) ---
+    # --- Step 5: Triage — detect, score, create cases (includes sentiment analysis) ---
     steps.append("run_triage")
-    tools_called.extend(["anomaly_tool", "scoring_tool", "modulate_adapter"])
-    print("\n[orchestrator] Step 5: Running triage (with Modulate sentiment)...")
+    tools_called.extend(["anomaly_tool", "scoring_tool", "sentiment_engine"])
+    print("\n[orchestrator] Step 5: Running triage (with sentiment analysis)...")
     clear_cases()
     cases = run_triage(run_id)
     print(f"  Generated {len(cases)} cases")
-
-    # Track Modulate sponsor activity
-    cases_with_sentiment = sum(1 for c in cases if c.sentiment_score is not None)
-    sponsor_activity["modulate"] = {
-        "action": "sentiment_analysis",
-        "mode": modulate_adapter.get_mode().value,
-        "cases_analyzed": cases_with_sentiment,
-        "total_analyses": modulate_adapter.get_status()["call_count"],
-    }
 
     # --- Step 6: LLM Synthesis — review cases & generate executive summary ---
     steps.append("llm_synthesis")
@@ -257,7 +236,7 @@ def run_autonomous(signal: SignalEvent | None = None) -> AutonomousRunResult:
     # --- Step 8: Actions via Airia ---
     steps.append("create_actions")
     tools_called.append("airia_adapter")
-    print("\n[orchestrator] Step 8: Creating actions via Airia...")
+    print("\n[orchestrator] Step 8: Creating remediation actions...")
 
     # Create case action for top case
     if cases:
@@ -289,12 +268,6 @@ def run_autonomous(signal: SignalEvent | None = None) -> AutonomousRunResult:
         )
         actions.append(approval)
         print(f"  Created approval task: {approval['action_id']}")
-
-    sponsor_activity["airia"] = {
-        "action": "workflow_execution",
-        "actions_created": len(actions),
-        "action_types": list(set(a["action_type"] for a in actions)),
-    }
 
     # --- Step 9: Save trace ---
     steps.append("save_trace")
@@ -328,6 +301,5 @@ def run_autonomous(signal: SignalEvent | None = None) -> AutonomousRunResult:
         cases=cases,
         actions=actions,
         trace=trace,
-        sponsor_activity=sponsor_activity,
         reasoning_trace=reasoning_trace,
     )

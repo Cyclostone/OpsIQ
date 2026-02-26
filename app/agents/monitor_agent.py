@@ -90,13 +90,11 @@ def enrich_signal(signal: SignalEvent) -> dict[str, Any]:
         # Lightdash enrichment: add relevant metric definitions
         context["adapter_context"] = {
             "source": "lightdash",
-            "mode": lightdash_adapter.get_mode().value,
             "related_metrics": _find_related_metrics(signal),
         }
     else:
         context["adapter_context"] = {
             "source": "internal",
-            "mode": "mock",
             "note": "Internal signal — no external enrichment needed",
         }
 

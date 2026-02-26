@@ -14,32 +14,11 @@ STORAGE_DIR = PROJECT_ROOT / "storage"
 
 
 class Settings(BaseSettings):
-    # --- Mode ---
-    opsiq_mode: str = Field(default="mock", description="mock or real")
-
     # --- LLM (Groq preferred — free & fast; OpenAI as fallback) ---
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
-
-    # --- Datadog ---
-    datadog_api_key: str = ""
-    datadog_app_key: str = ""
-    datadog_site: str = "datadoghq.com"
-
-    # --- Lightdash ---
-    lightdash_url: str = ""
-    lightdash_api_key: str = ""
-    lightdash_project_uuid: str = ""
-
-    # --- Airia ---
-    airia_api_url: str = "https://api.airia.ai"
-    airia_api_key: str = ""
-
-    # --- Modulate (ToxMod) ---
-    modulate_api_key: str = ""
-    modulate_api_url: str = "https://api.modulate.ai"
 
     # --- Server ---
     backend_host: str = "0.0.0.0"
@@ -52,22 +31,6 @@ class Settings(BaseSettings):
     }
 
     # --- Helpers ---
-    @property
-    def datadog_available(self) -> bool:
-        return self.opsiq_mode == "real" and bool(self.datadog_api_key) and bool(self.datadog_app_key)
-
-    @property
-    def lightdash_available(self) -> bool:
-        return self.opsiq_mode == "real" and bool(self.lightdash_api_key)
-
-    @property
-    def airia_available(self) -> bool:
-        return self.opsiq_mode == "real" and bool(self.airia_api_key)
-
-    @property
-    def modulate_available(self) -> bool:
-        return bool(self.modulate_api_key)
-
     @property
     def llm_available(self) -> bool:
         return bool(self.groq_api_key) or bool(self.openai_api_key)

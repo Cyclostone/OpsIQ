@@ -19,7 +19,6 @@ class TestHealthAPI:
         data = resp.json()
         assert data["status"] == "ok"
         assert data["version"] == "0.1.0"
-        assert data["mode"] in ("mock", "real")
         assert isinstance(data["tables_loaded"], list)
         assert len(data["tables_loaded"]) >= 7
 
@@ -54,13 +53,6 @@ class TestMonitorAPI:
         # If LLM is available, should have reasoning steps
         if data.get("reasoning_trace"):
             assert isinstance(data["reasoning_trace"], dict)
-
-    def test_run_autonomous_has_sponsor_activity(self):
-        resp = client.post("/monitor/run")
-        data = resp.json()
-        assert "sponsor_activity" in data
-        activity = data["sponsor_activity"]
-        assert isinstance(activity, dict)
 
     def test_fetch_signals(self):
         resp = client.get("/monitor/signals")
@@ -286,13 +278,6 @@ class TestSentimentAPI:
         assert "polarity" in data
         assert "risk_level" in data
 
-    def test_sentiment_status(self):
-        resp = client.get("/sentiment/status")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "name" in data
-        assert data["name"] == "modulate"
-
     def test_sentiment_log(self):
         # Analyze something first
         client.post("/sentiment/analyze", json={"text": "Test text"})
@@ -304,40 +289,10 @@ class TestSentimentAPI:
 
 
 # ---------------------------------------------------------------------------
-# Sponsors & Demo
+# State Management
 # ---------------------------------------------------------------------------
 
-class TestSponsorAPI:
-    def test_sponsor_status(self):
-        resp = client.get("/sponsors/status")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "sponsors" in data
-        assert "llm" in data
-        assert "mode" in data
-        sponsors = data["sponsors"]
-        assert len(sponsors) == 4
-        names = [s["name"] for s in sponsors]
-        assert "Datadog" in names
-        assert "Lightdash" in names
-        assert "Airia" in names
-        # Modulate may be lowercase
-        assert any("modulate" in n.lower() for n in names)
-
-    def test_sponsor_status_no_duplicates(self):
-        resp = client.get("/sponsors/status")
-        sponsors = resp.json()["sponsors"]
-        names = [s["name"].lower() for s in sponsors]
-        assert len(names) == len(set(names)), f"Duplicate sponsors found: {names}"
-
-    def test_sponsor_activity(self):
-        # Run autonomous first to generate activity
-        client.post("/monitor/run")
-        resp = client.get("/sponsors/activity")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert isinstance(data, dict)
-
+class TestDemoAPI:
     def test_demo_reset(self):
         resp = client.post("/demo/reset")
         assert resp.status_code == 200

@@ -41,13 +41,8 @@ class FeedbackType(str, Enum):
     not_useful = "not_useful"
 
 
-class AdapterMode(str, Enum):
-    mock = "mock"
-    real = "real"
-
-
 # ---------------------------------------------------------------------------
-# Signal Events (from Datadog / Lightdash / internal)
+# Signal Events
 # ---------------------------------------------------------------------------
 
 class SignalEvent(BaseModel):
@@ -77,7 +72,7 @@ class TriageCase(BaseModel):
     recommended_action: str = ""
     status: CaseStatus = CaseStatus.open
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    sentiment_score: Optional[dict[str, Any]] = None  # Modulate sentiment analysis
+    sentiment_score: Optional[dict[str, Any]] = None  # Sentiment analysis
 
 
 # ---------------------------------------------------------------------------
@@ -169,21 +164,7 @@ class AutonomousRunResult(BaseModel):
     actions: list[dict[str, Any]] = Field(default_factory=list)
     trace: Optional[TraceRecord] = None
     eval_score: Optional[EvalScore] = None
-    sponsor_activity: dict[str, Any] = Field(default_factory=dict)
     reasoning_trace: dict[str, str] = Field(default_factory=dict)
-
-
-# ---------------------------------------------------------------------------
-# Sponsor Adapter Status
-# ---------------------------------------------------------------------------
-
-class SponsorStatus(BaseModel):
-    name: str
-    mode: AdapterMode
-    available: bool
-    description: str
-    last_used: Optional[datetime] = None
-    sample_payload: Optional[dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +174,6 @@ class SponsorStatus(BaseModel):
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "0.1.0"
-    mode: str = "mock"
     tables_loaded: list[str] = Field(default_factory=list)
 
 

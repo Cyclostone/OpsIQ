@@ -1,15 +1,16 @@
-"""OpsIQ Streamlit Frontend — 5-page demo UI for hackathon presentation."""
+"""OpsIQ Streamlit Frontend — Self-improving billing anomaly detection agent."""
 
 import streamlit as st
 import requests
 import plotly.graph_objects as go
 import json
+import os
 from datetime import datetime
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-API_BASE = "http://localhost:8000"
+API_BASE = os.getenv("BACKEND_URL", "http://localhost:8000")
 st.set_page_config(
     page_title="OpsIQ — Operational Intelligence",
     page_icon="🧠",
@@ -92,8 +93,6 @@ hr { border-color: rgba(148, 163, 184, 0.08) !important; margin: 1.5rem 0 !impor
 .opsiq-badge-high { background: rgba(249, 115, 22, 0.15); color: #FDBA74; border: 1px solid rgba(249, 115, 22, 0.3); }
 .opsiq-badge-medium { background: rgba(234, 179, 8, 0.15); color: #FDE047; border: 1px solid rgba(234, 179, 8, 0.3); }
 .opsiq-badge-low { background: rgba(34, 197, 94, 0.15); color: #86EFAC; border: 1px solid rgba(34, 197, 94, 0.3); }
-.opsiq-badge-real { background: rgba(34, 197, 94, 0.15); color: #86EFAC; border: 1px solid rgba(34, 197, 94, 0.3); }
-.opsiq-badge-mock { background: rgba(234, 179, 8, 0.15); color: #FDE047; border: 1px solid rgba(234, 179, 8, 0.3); }
 .opsiq-badge-open { background: rgba(59, 130, 246, 0.15); color: #93C5FD; border: 1px solid rgba(59, 130, 246, 0.3); }
 .opsiq-badge-approved { background: rgba(34, 197, 94, 0.15); color: #86EFAC; border: 1px solid rgba(34, 197, 94, 0.3); }
 .opsiq-badge-rejected { background: rgba(239, 68, 68, 0.15); color: #FCA5A5; border: 1px solid rgba(239, 68, 68, 0.3); }
@@ -103,11 +102,6 @@ hr { border-color: rgba(148, 163, 184, 0.08) !important; margin: 1.5rem 0 !impor
 .opsiq-hero { padding: 2rem 0 1rem 0; }
 .opsiq-hero h1 { font-size: 2.2rem !important; background: linear-gradient(135deg, #A5B4FC, #6366F1, #8B5CF6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.25rem !important; }
 .opsiq-hero p { color: #94A3B8; font-size: 1rem; margin-top: 0; }
-
-/* ---- Sponsor card ---- */
-.sponsor-card { padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.1); background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); margin-bottom: 0.75rem; }
-.sponsor-card h4 { margin: 0 0 0.5rem 0; color: #F1F5F9; font-weight: 700; }
-.sponsor-card .desc { color: #94A3B8; font-size: 0.85rem; }
 
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar { width: 6px; }
@@ -125,11 +119,6 @@ def sev_badge(severity: str) -> str:
 def status_badge(status: str) -> str:
     """Return HTML badge for case status."""
     return f'<span class="opsiq-badge opsiq-badge-{status}">{status}</span>'
-
-def mode_badge(mode: str) -> str:
-    """Return HTML badge for adapter mode."""
-    return f'<span class="opsiq-badge opsiq-badge-{mode}">{mode}</span>'
-
 
 def api(method: str, path: str, silent: bool = False, **kwargs) -> dict | list | None:
     """Call the FastAPI backend."""
@@ -174,7 +163,7 @@ def render_sidebar():
 
     page = st.sidebar.radio(
         "Navigate",
-        ["🏠 Mission Control", "🔍 Triage Cases", "📊 Analyst", "🧪 QA Lab", "🔧 Sponsor Tools"],
+        ["🏠 Mission Control", "🔍 Triage Cases", "📊 Analyst", "🧪 QA Lab"],
         index=0,
     )
 
@@ -183,11 +172,11 @@ def render_sidebar():
     # Health check
     health = api("GET", "/health", silent=True)
     if health:
-        mode = health.get('mode', 'mock')
+        tables = len(health.get('tables_loaded', []))
         st.sidebar.markdown(f"""
         <div style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px;">
             <div style="color: #86EFAC; font-weight: 700; font-size: 0.8rem;">✦ SYSTEM ONLINE</div>
-            <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">Mode: {mode_badge(mode)} &nbsp; Tables: {len(health.get('tables_loaded', []))}</div>
+            <div style="color: #94A3B8; font-size: 0.75rem; margin-top: 4px;">Tables loaded: {tables}</div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -213,16 +202,10 @@ def render_sidebar():
             st.sidebar.caption("LLM: Deterministic fallback")
 
     st.sidebar.divider()
-    if st.sidebar.button("🔄 Reset Demo", use_container_width=True):
+    if st.sidebar.button("🔄 Reset State", use_container_width=True):
         api("POST", "/demo/reset")
         st.cache_data.clear()
         st.rerun()
-
-    st.sidebar.markdown("""
-    <div style="color: #475569; font-size: 0.65rem; text-align: center; padding-top: 1rem;">
-        Built for Self Improving Agents Hack 2026
-    </div>
-    """, unsafe_allow_html=True)
 
     return page
 
@@ -318,7 +301,7 @@ def page_mission_control():
     # Actions
     if actions:
         st.divider()
-        st.markdown("### ⚡ Airia Actions")
+        st.markdown("### ⚡ Remediation Actions")
         for a in actions:
             with st.container(border=True):
                 ac1, ac2, ac3 = st.columns(3)
@@ -340,25 +323,6 @@ def page_mission_control():
             with st.expander(f"💭 {label}", expanded=(key == "executive_summary")):
                 st.markdown(value)
 
-    # Sponsor activity
-    sponsor = result.get("sponsor_activity", {})
-    if sponsor:
-        st.divider()
-        st.markdown("### 🏢 Sponsor Tool Activity")
-        sp_cols = st.columns(4)
-        sponsor_info = [
-            ("Datadog", "🐕", sponsor.get("datadog", {}), "signals_fetched"),
-            ("Lightdash", "💡", sponsor.get("lightdash", {}), "metrics_loaded"),
-            ("Airia", "🤖", sponsor.get("airia", {}), "actions_created"),
-            ("Modulate", "🛡️", sponsor.get("modulate", {}), "cases_analyzed"),
-        ]
-        for i, (name, icon, data, key) in enumerate(sponsor_info):
-            with sp_cols[i]:
-                st.markdown(f"**{icon} {name}**")
-                st.caption(f"{data.get('action', 'N/A')}")
-                val = data.get(key, 0)
-                if val:
-                    st.caption(f"{key.replace('_', ' ').title()}: **{val}**")
 
 
 # ---------------------------------------------------------------------------
@@ -413,7 +377,7 @@ def page_triage_cases():
             with h4:
                 st.markdown(f"Status: {status_badge(status)}", unsafe_allow_html=True)
 
-            # Sentiment score (Modulate)
+            # Sentiment score
             sentiment = c.get("sentiment_score")
             if sentiment:
                 risk = sentiment.get("overall_risk_level", "neutral")
@@ -433,7 +397,7 @@ def page_triage_cases():
 
                     # Detailed sentiment breakdown
                     if sentiment and sentiment.get("evidence_scores"):
-                        st.markdown("**Sentiment Analysis (Modulate):**")
+                        st.markdown("**Sentiment Analysis:**")
                         for i, es in enumerate(sentiment["evidence_scores"]):
                             p = es.get("polarity", 0)
                             r = es.get("risk_level", "neutral")
@@ -733,130 +697,11 @@ def page_qa_lab():
         sentiment_data = api("GET", "/sentiment/log")
         if sentiment_data and sentiment_data.get("analysis_log"):
             slog = sentiment_data["analysis_log"]
-            st.markdown(f"### Modulate Sentiment Log ({len(slog)} analyses)")
+            st.markdown(f"### Sentiment Analysis Log ({len(slog)} analyses)")
             for entry in reversed(slog[:20]):
                 risk = entry.get("risk_level", "neutral")
                 risk_emoji = {"high": "🔴", "elevated": "🟠", "neutral": "🟡", "low": "🟢"}.get(risk, "⚪")
                 st.caption(f"{risk_emoji} polarity={entry.get('polarity', 0):.2f} | {entry.get('provider', '?')} | {entry.get('text_preview', '')[:60]}...")
-
-
-# ---------------------------------------------------------------------------
-# Page 5: Sponsor Tools
-# ---------------------------------------------------------------------------
-def page_sponsor_tools():
-    st.markdown('<div class="opsiq-hero"><h1>🔧 Sponsor Integrations</h1><p>How OpsIQ uses Datadog, Lightdash, Airia, and Modulate</p></div>', unsafe_allow_html=True)
-
-    status_data = api("GET", "/sponsors/status")
-    if not status_data:
-        st.error("Could not fetch sponsor status")
-        return
-
-    sponsors = status_data.get("sponsors", [])
-    icon_map = {"Datadog": "🐕", "Lightdash": "💡", "Airia": "🤖", "modulate": "🛡️"}
-    role_map = {
-        "Datadog": "Signal source — anomaly alerts trigger investigation",
-        "Lightdash": "Analytics layer — semantic metrics power the Analyst",
-        "Airia": "Action routing — governed pipeline execution",
-        "modulate": "Sentiment analysis — risk scoring on evidence text",
-    }
-
-    # Sponsor cards in a 2x2 grid
-    for row_start in range(0, len(sponsors), 2):
-        cols = st.columns(2)
-        for i, sp in enumerate(sponsors[row_start:row_start+2]):
-            with cols[i]:
-                name = sp.get("name", "Unknown")
-                mode = sp.get("mode", "mock")
-                icon = icon_map.get(name, "🔧")
-                with st.container(border=True):
-                    st.markdown(f"{icon} **{name}** &nbsp; {mode_badge(mode)}", unsafe_allow_html=True)
-                    st.caption(role_map.get(name, sp.get("description", "")))
-                    meta_parts = []
-                    if sp.get("call_count"):
-                        meta_parts.append(f"API calls: {sp['call_count']}")
-                    if sp.get("actions_created"):
-                        meta_parts.append(f"Actions: {sp['actions_created']}")
-                    if sp.get("last_used"):
-                        meta_parts.append(f"Last: {sp['last_used'][:19]}")
-                    if meta_parts:
-                        st.caption(" · ".join(meta_parts))
-
-                    sample = sp.get("sample_payload")
-                    if sample:
-                        with st.expander("📦 Sample Payload"):
-                            st.json(sample)
-
-    # LLM status
-    llm = status_data.get("llm", {})
-    st.divider()
-    st.markdown("### 🤖 LLM Enhancement Layer")
-    with st.container(border=True):
-        l1, l2, l3, l4 = st.columns(4)
-        avail = llm.get("available", False)
-        with l1:
-            st.metric("Status", "Active" if avail else "Fallback")
-        with l2:
-            st.metric("Provider", llm.get("provider", "none").upper())
-        with l3:
-            st.metric("Model", llm.get("model", "N/A"))
-        with l4:
-            st.metric("Total Calls", llm.get("call_count", 0))
-
-    # Activity log
-    st.divider()
-    st.markdown("### 📜 Activity Log")
-    activity = api("GET", "/sponsors/activity")
-    if activity:
-        act_tabs = st.tabs(["🐕 Datadog", "💡 Lightdash", "🤖 Airia", "🛡️ Modulate"])
-        with act_tabs[0]:
-            dd_log = activity.get("datadog", [])
-            if dd_log:
-                for entry in dd_log[:5]:
-                    st.caption(f"`{entry.get('action', '')}` — {entry.get('timestamp', '')[:19]}")
-            else:
-                st.caption("No activity yet")
-        with act_tabs[1]:
-            lh_log = activity.get("lightdash", [])
-            if lh_log:
-                for entry in lh_log[:5]:
-                    st.caption(f"`{entry.get('action', '')}` — {entry.get('timestamp', '')[:19]}")
-            else:
-                st.caption("No activity yet")
-        with act_tabs[2]:
-            ai_data = activity.get("airia", {})
-            ai_log = ai_data.get("calls", []) if isinstance(ai_data, dict) else []
-            ai_actions = ai_data.get("actions", []) if isinstance(ai_data, dict) else []
-            if ai_actions:
-                for a in ai_actions[:5]:
-                    st.caption(f"`{a.get('action_type', '')}` — {a.get('action_id', '')} — {a.get('workflow_status', '')}")
-            if ai_log:
-                for entry in ai_log[:5]:
-                    st.caption(f"`{entry.get('action', '')}` — {entry.get('timestamp', '')[:19]}")
-            if not ai_log and not ai_actions:
-                st.caption("No activity yet")
-        with act_tabs[3]:
-            mod_log = api("GET", "/sentiment/log")
-            if mod_log and mod_log.get("analysis_log"):
-                for entry in mod_log["analysis_log"][:10]:
-                    risk = entry.get("risk_level", "neutral")
-                    st.markdown(f"{sev_badge(risk)} polarity={entry.get('polarity', 0):.2f} · {entry.get('text_preview', '')[:50]}...", unsafe_allow_html=True)
-            else:
-                st.caption("No sentiment analyses yet")
-
-    # Integration architecture
-    st.divider()
-    st.markdown("### 🏗️ Architecture")
-    st.markdown("""
-    | Sponsor | Role in OpsIQ | Integration Point |
-    |---------|--------------|-------------------|
-    | **Datadog** | Signal source — anomaly alerts trigger autonomous investigation | `monitor_agent` → `datadog_adapter` |
-    | **Lightdash** | Analytics layer — semantic metric definitions power the Analyst module | `analyst_agent` → `lightdash_adapter` |
-    | **Airia** | Action routing — cases, alerts, approvals flow through governed Airia pipelines | `orchestrator` → `airia_adapter` |
-    | **Modulate** | Sentiment analysis — risk scoring on case evidence text via ToxMod | `triage_agent` → `modulate_adapter` |
-
-    All adapters support **mock mode** (demo-safe) and **real mode** (plug in API keys in `.env`).
-    LLM reasoning (Groq) is always active when `GROQ_API_KEY` is set.
-    """)
 
 
 # ---------------------------------------------------------------------------
@@ -889,8 +734,6 @@ def main():
         page_analyst()
     elif page == "🧪 QA Lab":
         page_qa_lab()
-    elif page == "🔧 Sponsor Tools":
-        page_sponsor_tools()
 
 
 if __name__ == "__main__":

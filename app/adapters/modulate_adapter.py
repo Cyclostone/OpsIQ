@@ -1,19 +1,11 @@
-"""Modulate Adapter — sentiment analysis on case evidence text.
+"""Sentiment Engine — keyword-based sentiment analysis on case evidence text.
 
-Modulate's ToxMod API analyzes text for sentiment, toxicity, and risk signals.
-In OpsIQ, we use it to add a sentiment/risk dimension to triage cases:
+Adds a sentiment/risk dimension to triage cases:
   - Negative sentiment on evidence → higher urgency (potential fraud language)
   - Neutral/positive → routine anomaly
   - Subjectivity score → how opinion-based vs factual the evidence is
 
-Integration modes:
-  1. MCP Sentiment Tool (primary) — uses the local MCP sentiment-analysis server
-  2. Modulate API (if MODULATE_API_KEY set) — calls real ToxMod API
-  3. Heuristic fallback — keyword-based scoring if neither available
-
-Setup:
-  - MCP tool is available automatically (no key needed)
-  - For real Modulate API: https://console.modulate.ai → API Key → add to .env
+Uses heuristic keyword-based scoring tuned for financial operations text.
 """
 
 from __future__ import annotations
@@ -23,36 +15,12 @@ import re
 from datetime import datetime
 from typing import Any
 
-from app.config import settings
-from app.models.schemas import AdapterMode
-
-
 # ---------------------------------------------------------------------------
 # State tracking
 # ---------------------------------------------------------------------------
 _last_used: datetime | None = None
 _call_count: int = 0
 _analysis_log: list[dict[str, Any]] = []
-
-
-def get_mode() -> AdapterMode:
-    """Return current adapter mode."""
-    if settings.modulate_available:
-        return AdapterMode.real
-    return AdapterMode.mock
-
-
-def get_status() -> dict[str, Any]:
-    """Return adapter status for health checks."""
-    return {
-        "name": "modulate",
-        "mode": get_mode().value,
-        "available": True,  # MCP tool always available as fallback
-        "modulate_api_key_set": settings.modulate_available,
-        "call_count": _call_count,
-        "last_used": _last_used.isoformat() if _last_used else None,
-        "description": "Sentiment analysis on case evidence (via MCP sentiment tool / Modulate ToxMod API)",
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -74,13 +42,7 @@ def analyze_text(text: str, context: str = "") -> dict[str, Any]:
     if not text or not text.strip():
         return _empty_result(context)
 
-    # Try Modulate API first if key is set
-    if settings.modulate_available:
-        result = _call_modulate_api(text, context)
-        if result:
-            return result
-
-    # Fallback: heuristic keyword-based analysis
+    # Heuristic keyword-based analysis
     result = _heuristic_sentiment(text, context)
     _last_used = datetime.utcnow()
     _call_count += 1
@@ -140,60 +102,7 @@ def analyze_case_evidence(evidence: list[str], case_title: str = "", anomaly_typ
 
 
 # ---------------------------------------------------------------------------
-# Modulate ToxMod API (real mode)
-# ---------------------------------------------------------------------------
-
-def _call_modulate_api(text: str, context: str = "") -> dict[str, Any] | None:
-    """Call real Modulate ToxMod API for sentiment/toxicity analysis."""
-    global _last_used, _call_count
-
-    try:
-        import httpx
-
-        resp = httpx.post(
-            f"{settings.modulate_api_url}/v1/text/analyze",
-            headers={
-                "Authorization": f"Bearer {settings.modulate_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "text": text[:1000],  # Cap text length
-                "analysis_types": ["sentiment", "toxicity"],
-            },
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-
-        # Map Modulate response to our format
-        sentiment = data.get("sentiment", {})
-        toxicity = data.get("toxicity", {})
-
-        polarity = sentiment.get("score", 0.0)
-        subjectivity = toxicity.get("score", 0.0)
-
-        result = {
-            "polarity": round(polarity, 3),
-            "subjectivity": round(subjectivity, 3),
-            "risk_level": _polarity_to_risk(polarity),
-            "assessment": sentiment.get("label", "neutral"),
-            "context": context,
-            "provider": "modulate_api",
-            "raw_response": data,
-        }
-
-        _last_used = datetime.utcnow()
-        _call_count += 1
-        _log_analysis(text, result, "modulate_api")
-        return result
-
-    except Exception as e:
-        print(f"  [modulate_adapter] API call failed: {e}")
-        return None
-
-
-# ---------------------------------------------------------------------------
-# Heuristic sentiment (fallback — always available)
+# Heuristic sentiment analysis
 # ---------------------------------------------------------------------------
 
 # Keyword lists for financial anomaly sentiment

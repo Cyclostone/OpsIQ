@@ -5,7 +5,7 @@ from datetime import datetime
 from pydantic import ValidationError
 
 from app.models.schemas import (
-    Severity, Confidence, CaseStatus, FeedbackType, AdapterMode,
+    Severity, Confidence, CaseStatus, FeedbackType,
     SignalEvent, TriageCase, AnalystQuery, AnalystResponse,
     FeedbackItem, EvalScore, MemoryEntry, TraceRecord,
     AutonomousRunResult, HealthResponse, ResetResponse,
@@ -40,11 +40,6 @@ class TestEnums:
         assert FeedbackType.false_positive == "false_positive"
         assert FeedbackType.useful == "useful"
         assert FeedbackType.not_useful == "not_useful"
-
-    def test_adapter_mode_values(self):
-        assert AdapterMode.mock == "mock"
-        assert AdapterMode.real == "real"
-
 
 # ---------------------------------------------------------------------------
 # SignalEvent
@@ -232,8 +227,8 @@ class TestAutonomousRunResult:
 
 class TestAPIResponses:
     def test_health_response(self):
-        h = HealthResponse(status="ok", version="0.1.0", mode="real", tables_loaded=["customers"])
-        assert h.mode == "real"
+        h = HealthResponse(status="ok", version="0.1.0", tables_loaded=["customers"])
+        assert h.status == "ok"
 
     def test_reset_response(self):
         r = ResetResponse()

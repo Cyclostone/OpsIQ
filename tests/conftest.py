@@ -14,7 +14,6 @@ if PROJECT_ROOT not in sys.path:
 @pytest.fixture(autouse=True)
 def _env_defaults(monkeypatch, tmp_path):
     """Set safe environment defaults so tests never hit real APIs unless opted in."""
-    monkeypatch.setenv("OPSIQ_MODE", "real")
     # Use a temp SQLite DB for each test
     db_path = str(tmp_path / "test_opsiq.db")
     monkeypatch.setenv("OPSIQ_TEST_DB", db_path)
